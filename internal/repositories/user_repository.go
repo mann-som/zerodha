@@ -16,10 +16,6 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 }
 
 func (r *UserRepository) Create(user models.User) (models.User, error) {
-	if user.ID != "" {
-		return models.User{}, errors.New("ID should be empty; it will be auto-generated")
-	}
-
 	result := r.db.Create(&user)
 	if result.Error != nil {
 		return models.User{}, result.Error
