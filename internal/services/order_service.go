@@ -78,3 +78,7 @@ func (s *OrderService) DeleteOrder(id string) error {
 	}
 	return s.repo.Delete(id)
 }
+
+func (s *OrderService) ListOrders() ([]models.Order, error) {
+	return s.repo.List()
+}

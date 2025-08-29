@@ -59,3 +59,12 @@ func (r *UserRepository) Delete(id string) error {
 
 	return nil
 }
+
+func (r *UserRepository) List() ([]models.User, error) {
+	var users []models.User
+	result := r.db.Find(&users)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return users, nil
+}

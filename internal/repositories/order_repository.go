@@ -59,3 +59,12 @@ func (r *OrderRepository) Delete(id string) error {
 	}
 	return nil
 }
+
+func (r *OrderRepository) List() ([]models.Order, error) {
+	var orders []models.Order
+	result := r.db.Find(&orders)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return orders, nil
+}

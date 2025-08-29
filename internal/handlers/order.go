@@ -63,3 +63,12 @@ func (h *OrderHandler) DeleteOrder(c *gin.Context) {
 	}
 	c.IndentedJSON(http.StatusOK, gin.H{"message": "order deleted"})
 }
+
+func (h *OrderHandler) ListOrders(c *gin.Context) {
+	orders, err := h.service.ListOrders()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, orders)
+}

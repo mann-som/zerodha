@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zerodha Clone - CRUD UI</title>
+    <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.development.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div id="root" class="container mx-auto p-4"></div>
+    <script type="text/babel">
+        console.log('React script loaded');
+        const { useState, useEffect } = React;
+
+        function App() {
+            console.log('App component rendering');
+            const [users, setUsers] = useState([]);
+            const [orders, setOrders] = useState([]);
+            const [userForm, setUserForm] = useState({ email: '', name: '', balance: '' });
+            const [orderForm, setOrderForm] = useState({ user_id: '', symbol: '', side: 'buy', quantity: '', price: '' });
+            const [editingUser, setEditingUser] = useState(null);
+            const [editingOrder, setEditingOrder] = useState(null);
+
+            const apiBase = 'http://localhost:8080';
+
+            // Fetch users and orders on mount
+            useEffect(() => {
+                console.log('useEffect triggered');
+                fetchUsers();
+                fetchOrders();
+            }, []);
+
+            const fetchUsers = async () => {
+                try {
+                    console.log('Fetching users...');
+                    const response = await fetch(`${apiBase}/users`);
+                    if (!response.ok) throw new Error('Failed to fetch users');
+                    const data = await response.json();
+                    console.log('Users fetched:', data);
+                    setUsers(data);
+                } catch (error) {
+                    console.error('Error fetching users:', error);
+                    alert('Error fetching users: ' + error.message);
+                }
+            };
+
+            const fetchOrders = async () => {
+                try {
+                    console.log('Fetching orders...');
+                    const response = await fetch(`${apiBase}/orders`);
+                    if (!response.ok) throw new Error('Failed to fetch orders');
+                    const data = await response.json();
+                    console.log('Orders fetched:', data);
+                    setOrders(data);
+                } catch (error) {
+                    console.error('Error fetching orders:', error);
+                    alert('Error fetching orders: ' + error.message);
+                }
+            };
+
+            const handleUserSubmit = async (e) => {
+                e.preventDefault();
+                console.log('Submitting user form:', userForm);
+                const method = editingUser ? 'PUT' : 'POST';
+                const url = editingUser ? `${apiBase}/users/${editingUser.id}` : `${apiBase}/users`;
+                try {
+                    const response = await fetch(url, {
+                        method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({...userForm, balance : Number(userForm.balance)})
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        console.log('User saved:', data);
+                        setUsers(editingUser ? users.map(u => u.id === data.id ? data : u) : [...users, data]);
+                        setUserForm({ email: '', name: '', balance: '' });
+                        setEditingUser(null);
+                        fetchUsers(); // Refresh list
+                    } else {
+                        console.error('User save failed:', data.error);
+                        alert(data.error || 'Failed to save user');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error: ' + error.message);
+                }
+            };
+
+            const handleOrderSubmit = async (e) => {
+                e.preventDefault();
+                console.log('Submitting order form:', orderForm);
+                const method = editingOrder ? 'PUT' : 'POST';
+                const url = editingOrder ? `${apiBase}/orders/${editingOrder.id}` : `${apiBase}/orders`;
+                try {
+                    const response = await fetch(url, {
+                        method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            ...orderForm,
+                            quantity: parseInt(orderForm.quantity, 10),
+                            price: parseFloat(orderForm.price)
+                        })
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        console.log('Order saved:', data);
+                        setOrders(editingOrder ? orders.map(o => o.id === data.id ? data : o) : [...orders, data]);
+                        setOrderForm({ user_id: '', symbol: '', side: 'buy', quantity: '', price: '' });
+                        setEditingOrder(null);
+                        fetchOrders(); // Refresh list
+                    } else {
+                        console.error('Order save failed:', data.error);
+                        alert(data.error || 'Failed to save order');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error: ' + error.message);
+                }
+            };
+
+            const deleteUser = async (id) => {
+                console.log('Deleting user:', id);
+                try {
+                    const response = await fetch(`${apiBase}/users/${id}`, { method: 'DELETE' });
+                    if (response.ok) {
+                        console.log('User deleted:', id);
+                        setUsers(users.filter(u => u.id !== id));
+                        fetchUsers(); // Refresh list
+                    } else {
+                        const data = await response.json();
+                        console.error('Delete user failed:', data.error);
+                        alert(data.error || 'Failed to delete user');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error: ' + error.message);
+                }
+            };
+
+            const deleteOrder = async (id) => {
+                console.log('Deleting order:', id);
+                try {
+                    const response = await fetch(`${apiBase}/orders/${id}`, { method: 'DELETE' });
+                    if (response.ok) {
+                        console.log('Order deleted:', id);
+                        setOrders(orders.filter(o => o.id !== id));
+                        fetchOrders(); // Refresh list
+                    } else {
+                        const data = await response.json();
+                        console.error('Delete order failed:', data.error);
+                        alert(data.error || 'Failed to delete order');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error: ' + error.message);
+                }
+            };
+
+            const editUser = (user) => {
+                console.log('Editing user:', user);
+                setEditingUser(user);
+                setUserForm({ email: user.email, name: user.name, balance: user.balance });
+            };
+
+            const editOrder = (order) => {
+                console.log('Editing order:', order);
+                setEditingOrder(order);
+                setOrderForm({ user_id: order.user_id, symbol: order.symbol, side: order.side, quantity: order.quantity, price: order.price });
+            };
+
+            return (
+                <div>
+                    <h1 className="text-2xl font-bold mb-4">Zerodha Clone - CRUD UI</h1>
+                    <p className="mb-4">Check console for debug logs</p>
+
+                    {/* User Form */}
+                    <div className="mb-8">
+                        <h2 className="text-xl font-semibold mb-2">{editingUser ? 'Edit User' : 'Create User'}</h2>
+                        <form onSubmit={handleUserSubmit} className="space-y-4">
+                            <input
+                                type="email"
+                                placeholder="Email"
+                                value={userForm.email}
+                                onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                                className="border p-2 w-full"
+                                required
+                            />
+                            <input
+                                type="text"
+                                placeholder="Name"
+                                value={userForm.name}
+                                onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
+                                className="border p-2 w-full"
+                                required
+                            />
+                            <input
+                                type="number"
+                                placeholder="Balance"
+                                value={userForm.balance}
+                                onChange={(e) => setUserForm({ ...userForm, balance: e.target.value })}
+                                className="border p-2 w-full"
+                                required
+                            />
+                            <button type="submit" className="bg-blue-500 text-white p-2 rounded">
+                                {editingUser ? 'Update User' : 'Create User'}
+                            </button>
+                            {editingUser && (
+                                <button
+                                    type="button"
+                                    onClick={() => { setEditingUser(null); setUserForm({ email: '', name: '', balance: '' }); }}
+                                    className="bg-gray-500 text-white p-2 rounded ml-2"
+                                >
+                                    Cancel
+                                </button>
+                            )}
+                        </form>
+                    </div>
+
+                    {/* Order Form */}
+                    <div className="mb-8">
+                        <h2 className="text-xl font-semibold mb-2">{editingOrder ? 'Edit Order' : 'Create Order'}</h2>
+                        <form onSubmit={handleOrderSubmit} className="space-y-4">
+                            <input
+                                type="text"
+                                placeholder="User ID"
+                                value={orderForm.user_id}
+                                onChange={(e) => setOrderForm({ ...orderForm, user_id: e.target.value })}
+                                className="border p-2 w-full"
+                                required
+                            />
+                            <input
+                                type="text"
+                                placeholder="Symbol (e.g., RELIANCE)"
+                                value={orderForm.symbol}
+                                onChange={(e) => setOrderForm({ ...orderForm, symbol: e.target.value })}
+                                className="border p-2 w-full"
+                                required
+                            />
+                            <select
+                                value={orderForm.side}
+                                onChange={(e) => setOrderForm({ ...orderForm, side: e.target.value })}
+                                className="border p-2 w-full"
+                                required
+                            >
+                                <option value="buy">Buy</option>
+                                <option value="sell">Sell</option>
+                            </select>
+                            <input
+                                type="number"
+                                placeholder="Quantity"
+                                value={orderForm.quantity}
+                                onChange={(e) => setOrderForm({ ...orderForm, quantity: e.target.value })}
+                                className="border p-2 w-full"
+                                required
+                            />
+                            <input
+                                type="number"
+                                placeholder="Price"
+                                value={orderForm.price}
+                                onChange={(e) => setOrderForm({ ...orderForm, price: e.target.value })}
+                                className="border p-2 w-full"
+                                required
+                            />
+                            <button type="submit" className="bg-blue-500 text-white p-2 rounded">
+                                {editingOrder ? 'Update Order' : 'Create Order'}
+                            </button>
+                            {editingOrder && (
+                                <button
+                                    type="button"
+                                    onClick={() => { setEditingOrder(null); setOrderForm({ user_id: '', symbol: '', side: 'buy', quantity: '', price: '' }); }}
+                                    className="bg-gray-500 text-white p-2 rounded ml-2"
+                                >
+                                    Cancel
+                                </button>
+                            )}
+                        </form>
+                    </div>
+
+                    {/* Users Table */}
+                    <div className="mb-8">
+                        <h2 className="text-xl font-semibold mb-2">Users</h2>
+                        <table className="w-full border">
+                            <thead>
+                                <tr className="bg-gray-200">
+                                    <th className="border p-2">ID</th>
+                                    <th className="border p-2">Email</th>
+                                    <th className="border p-2">Name</th>
+                                    <th className="border p-2">Balance</th>
+                                    <th className="border p-2">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {users.map(user => (
+                                    <tr key={user.id}>
+                                        <td className="border p-2">{user.id}</td>
+                                        <td className="border p-2">{user.email}</td>
+                                        <td className="border p-2">{user.name}</td>
+                                        <td className="border p-2">{user.balance}</td>
+                                        <td className="border p-2">
+                                            <button
+                                                onClick={() => editUser(user)}
+                                                className="bg-yellow-500 text-white p-1 rounded mr-2"
+                                            >
+                                                Edit
+                                            </button>
+                                            <button
+                                                onClick={() => deleteUser(user.id)}
+                                                className="bg-red-500 text-white p-1 rounded"
+                                            >
+                                                Delete
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Orders Table */}
+                    <div>
+                        <h2 className="text-xl font-semibold mb-2">Orders</h2>
+                        <table className="w-full border">
+                            <thead>
+                                <tr className="bg-gray-200">
+                                    <th className="border p-2">ID</th>
+                                    <th className="border p-2">User ID</th>
+                                    <th className="border p-2">Symbol</th>
+                                    <th className="border p-2">Side</th>
+                                    <th className="border p-2">Quantity</th>
+                                    <th className="border p-2">Price</th>
+                                    <th className="border p-2">Status</th>
+                                    <th className="border p-2">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {orders.map(order => (
+                                    <tr key={order.id}>
+                                        <td className="border p-2">{order.id}</td>
+                                        <td className="border p-2">{order.user_id}</td>
+                                        <td className="border p-2">{order.symbol}</td>
+                                        <td className="border p-2">{order.side}</td>
+                                        <td className="border p-2">{order.quantity}</td>
+                                        <td className="border p-2">{order.price}</td>
+                                        <td className="border p-2">{order.status}</td>
+                                        <td className="border p-2">
+                                            <button
+                                                onClick={() => editOrder(order)}
+                                                className="bg-yellow-500 text-white p-1 rounded mr-2"
+                                            >
+                                                Edit
+                                            </button>
+                                            <button
+                                                onClick={() => deleteOrder(order.id)}
+                                                className="bg-red-500 text-white p-1 rounded"
+                                            >
+                                                Delete
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>

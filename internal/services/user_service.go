@@ -38,6 +38,10 @@ func (s *UserService) GetUser(id string) (models.User, error) {
 	return s.repo.Get(id)
 }
 
+func (s *UserService) ListUsers() ([]models.User, error) {
+	return s.repo.List()
+}
+
 func (s *UserService) UpdateUser(user models.User) (models.User, error) {
 	if user.ID == "" {
 		return models.User{}, errors.New("id is required")

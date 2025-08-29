@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/mann-som/zerodha/internal/handlers"
@@ -48,6 +49,15 @@ func main() {
 
 	r := gin.Default()
 
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"}, // Allow all for dev; restrict in production
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
+		AllowHeaders:     []string{"Content-Type"},
+		AllowCredentials: true,
+	}))
+
+	r.Static("/ui", "./frontend")
+
 	userRepo := repositories.NewUserRepository(db)
 	userService := services.NewUserService(userRepo)
 	userHandler := handlers.NewUserHandler(userService)
@@ -61,11 +71,13 @@ func main() {
 	})
 
 	r.POST("/users", userHandler.CreateUser)
+	r.GET("/users", userHandler.ListUsers)
 	r.GET("/users/:id", userHandler.GetUser)
 	r.PUT("/users/:id", userHandler.UpdateUser)
 	r.DELETE("/users/:id", userHandler.DeleteUser)
 
 	r.POST("/orders", orderHandler.CreateOrder)
+	r.GET("/orders", orderHandler.ListOrders)
 	r.GET("/orders/:id", orderHandler.GetOrder)
 	r.PUT("/orders/:id", orderHandler.UpdateOrder)
 	r.DELETE("/orders/:id", orderHandler.DeleteOrder)

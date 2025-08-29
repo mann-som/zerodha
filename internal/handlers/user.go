@@ -40,6 +40,15 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, user)
 }
 
+func (h *UserHandler) ListUsers(c *gin.Context) {
+	users, err := h.service.ListUsers()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, users)
+}
+
 func (h *UserHandler) UpdateUser(c *gin.Context) {
 	var user models.User
 	if err := c.ShouldBindJSON(&user); err != nil {
