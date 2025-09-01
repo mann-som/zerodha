@@ -68,3 +68,15 @@ func (r *UserRepository) List() ([]models.User, error) {
 	}
 	return users, nil
 }
+
+func (r *UserRepository) GetByEmail(email string) (models.User, error) {
+	var user models.User
+	result := r.db.First(&user, "email = ?", email)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return models.User{}, errors.New("user not found")
+		}
+		return models.User{}, result.Error
+	}
+	return user, nil
+}

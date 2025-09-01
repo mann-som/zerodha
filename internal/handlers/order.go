@@ -19,15 +19,16 @@ func NewOrderHandler(service *services.OrderService) *OrderHandler {
 func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	var order models.Order
 	if err := c.ShouldBindJSON(&order); err != nil {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
-	createdOrder, err := h.service.CreateOrder(order)
+	userID, _ := c.Get("user_id")
+	createdOrder, err := h.service.CreateOrder(order, userID.(string))
 	if err != nil {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.IndentedJSON(http.StatusCreated, createdOrder)
+	c.JSON(http.StatusCreated, createdOrder)
 }
 
 func (h *OrderHandler) GetOrder(c *gin.Context) {
@@ -43,16 +44,17 @@ func (h *OrderHandler) GetOrder(c *gin.Context) {
 func (h *OrderHandler) UpdateOrder(c *gin.Context) {
 	var order models.Order
 	if err := c.ShouldBindJSON(&order); err != nil {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
 	order.ID = c.Param("id")
-	updatedOrder, err := h.service.UpdateOrder(order)
+	userID, _ := c.Get("user_id")
+	updatedOrder, err := h.service.UpdateOrder(order, userID.(string))
 	if err != nil {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.IndentedJSON(http.StatusOK, updatedOrder)
+	c.JSON(http.StatusOK, updatedOrder)
 }
 
 func (h *OrderHandler) DeleteOrder(c *gin.Context) {

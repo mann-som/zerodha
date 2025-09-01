@@ -8,17 +8,23 @@ import (
 )
 
 type OrderService struct {
-	repo *repositories.OrderRepository
+	repo     *repositories.OrderRepository
+	userRepo *repositories.UserRepository
 }
 
-func NewOrderService(repo *repositories.OrderRepository) *OrderService {
-	return &OrderService{repo: repo}
+func NewOrderService(repo *repositories.OrderRepository, userRepo *repositories.UserRepository) *OrderService {
+	return &OrderService{repo: repo, userRepo: userRepo}
 }
 
-func (s *OrderService) CreateOrder(order models.Order) (models.Order, error) {
-	if order.UserID == "" {
+func (s *OrderService) CreateOrder(order models.Order, userID string) (models.Order, error) {
+	if userID == "" {
 		return models.Order{}, errors.New("user_id is required")
 	}
+	_, err := s.userRepo.Get(userID)
+	if err != nil {
+		return models.Order{}, errors.New("user not found")
+	}
+	order.UserID = userID
 	if order.Symbol == "" {
 		return models.Order{}, errors.New("symbol is required")
 	}
@@ -47,13 +53,19 @@ func (s *OrderService) GetOrder(id string) (models.Order, error) {
 	return s.repo.Get(id)
 }
 
-func (s *OrderService) UpdateOrder(order models.Order) (models.Order, error) {
+func (s *OrderService) ListOrders() ([]models.Order, error) {
+	return s.repo.List()
+}
+
+func (s *OrderService) UpdateOrder(order models.Order, userID string) (models.Order, error) {
 	if order.ID == "" {
 		return models.Order{}, errors.New("id is required")
 	}
-	if order.UserID == "" {
-		return models.Order{}, errors.New("user_id is required")
+	_, err := s.userRepo.Get(userID)
+	if err != nil {
+		return models.Order{}, errors.New("user not found")
 	}
+	order.UserID = userID
 	if order.Symbol == "" {
 		return models.Order{}, errors.New("symbol is required")
 	}
@@ -77,8 +89,4 @@ func (s *OrderService) DeleteOrder(id string) error {
 		return errors.New("id is required")
 	}
 	return s.repo.Delete(id)
-}
-
-func (s *OrderService) ListOrders() ([]models.Order, error) {
-	return s.repo.List()
 }

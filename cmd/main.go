@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/mann-som/zerodha/internal/handlers"
+	"github.com/mann-som/zerodha/internal/middleware"
 	"github.com/mann-som/zerodha/internal/models"
 	"github.com/mann-som/zerodha/internal/repositories"
 	"github.com/mann-som/zerodha/internal/services"
@@ -36,6 +37,11 @@ func main() {
 		log.Fatal("DB_DSN not set in .env or environment variables")
 	}
 
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET not set in .env or environment variables")
+	}
+
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -50,7 +56,7 @@ func main() {
 	r := gin.Default()
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"}, // Allow all for dev; restrict in production
+		AllowOrigins:     []string{"*"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
 		AllowHeaders:     []string{"Content-Type"},
 		AllowCredentials: true,
@@ -59,28 +65,37 @@ func main() {
 	r.Static("/ui", "./frontend")
 
 	userRepo := repositories.NewUserRepository(db)
-	userService := services.NewUserService(userRepo)
-	userHandler := handlers.NewUserHandler(userService)
-
 	orderRepo := repositories.NewOrderRepository(db)
-	orderService := services.NewOrderService(orderRepo)
+
+	userService := services.NewUserService(userRepo)
+	loginService := services.NewLoginService(userRepo, jwtSecret)
+	orderService := services.NewOrderService(orderRepo, userRepo)
+
+	userHandler := handlers.NewUserHandler(userService)
 	orderHandler := handlers.NewOrderHandler(orderService)
+	loginHandler := handlers.NewLoginHandler(loginService)
 
 	r.GET("/health", func(c *gin.Context) {
 		c.String(200, "Trading API is up!")
 	})
 
-	r.POST("/users", userHandler.CreateUser)
-	r.GET("/users", userHandler.ListUsers)
-	r.GET("/users/:id", userHandler.GetUser)
-	r.PUT("/users/:id", userHandler.UpdateUser)
-	r.DELETE("/users/:id", userHandler.DeleteUser)
+	r.POST("/login", loginHandler.Login)
 
-	r.POST("/orders", orderHandler.CreateOrder)
-	r.GET("/orders", orderHandler.ListOrders)
-	r.GET("/orders/:id", orderHandler.GetOrder)
-	r.PUT("/orders/:id", orderHandler.UpdateOrder)
-	r.DELETE("/orders/:id", orderHandler.DeleteOrder)
+	api := r.Group("/api", middleware.AuthMiddleware(jwtSecret))
+	{
+
+		api.POST("/users", middleware.AdminMiddleware(), userHandler.CreateUser)
+		api.GET("/users", middleware.AdminMiddleware(), userHandler.ListUsers)
+		api.GET("/users/:id", middleware.AdminMiddleware(), userHandler.GetUser)
+		api.PUT("/users/:id", middleware.AdminMiddleware(), userHandler.UpdateUser)
+		r.DELETE("/users/:id", middleware.AdminMiddleware(), userHandler.DeleteUser)
+
+		api.POST("/orders", orderHandler.CreateOrder)
+		api.GET("/orders", orderHandler.ListOrders)
+		api.GET("/orders/:id", orderHandler.GetOrder)
+		api.PUT("/orders/:id", middleware.AdminMiddleware(), orderHandler.UpdateOrder)
+		api.DELETE("/orders/:id", middleware.AdminMiddleware(), orderHandler.DeleteOrder)
+	}
 
 	fmt.Printf("Server starting on :%s...\n", port)
 	if err := r.Run(":" + port); err != nil {
