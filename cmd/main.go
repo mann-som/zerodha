@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -18,14 +19,22 @@ import (
 )
 
 func main() {
-	err := godotenv.Load(".env")
+	// err := godotenv.Load(".env")
+	projectRoot, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("Failed to get working directory: %v", err)
+	}
+	if filepath.Base(projectRoot) == "cmd" {
+		projectRoot = filepath.Dir(projectRoot)
+	}
+	envPath := filepath.Join(projectRoot, ".env")
+	err = godotenv.Load(envPath)
 	if err != nil {
 		log.Printf("Error loading .env file: %v", err)
 		log.Println("Falling back to environment variables")
 	} else {
-		log.Println(".env file loaded successfully")
+		log.Printf(".env file loaded successfully from %s", envPath)
 	}
-
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -56,7 +65,7 @@ func main() {
 	r := gin.Default()
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"},
+		AllowOrigins:     []string{"http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
 		AllowHeaders:     []string{"Content-Type"},
 		AllowCredentials: true,
@@ -75,8 +84,9 @@ func main() {
 	orderHandler := handlers.NewOrderHandler(orderService)
 	loginHandler := handlers.NewLoginHandler(loginService)
 
+	r.POST("/register", userHandler.Register)
 	r.GET("/health", func(c *gin.Context) {
-		c.String(200, "Trading API is up!")
+		c.String(200, "Trading API is up!\n")
 	})
 
 	r.POST("/login", loginHandler.Login)
