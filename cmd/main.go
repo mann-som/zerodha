@@ -66,9 +66,10 @@ func main() {
 
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
-		AllowHeaders:     []string{"Content-Type"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
+		// Debug:            true,
 	}))
 
 	r.Static("/ui", "./frontend")
@@ -98,7 +99,7 @@ func main() {
 		api.GET("/users", middleware.AdminMiddleware(), userHandler.ListUsers)
 		api.GET("/users/:id", middleware.AdminMiddleware(), userHandler.GetUser)
 		api.PUT("/users/:id", middleware.AdminMiddleware(), userHandler.UpdateUser)
-		r.DELETE("/users/:id", middleware.AdminMiddleware(), userHandler.DeleteUser)
+		api.DELETE("/users/:id", middleware.AdminMiddleware(), userHandler.DeleteUser)
 
 		api.POST("/orders", orderHandler.CreateOrder)
 		api.GET("/orders", orderHandler.ListOrders)
