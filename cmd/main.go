@@ -19,7 +19,6 @@ import (
 )
 
 func main() {
-	// err := godotenv.Load(".env")
 	projectRoot, err := os.Getwd()
 	if err != nil {
 		log.Fatalf("Failed to get working directory: %v", err)
@@ -57,7 +56,7 @@ func main() {
 	}
 	log.Println("Connected to PostgreSQL database")
 
-	if err := db.AutoMigrate(&models.User{}, &models.Order{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.Order{}, &models.Stock{}); err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
 	log.Println("Database migration completed")
@@ -69,20 +68,20 @@ func main() {
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
-		// Debug:            true,
 	}))
-
-	r.Static("/ui", "./frontend")
 
 	userRepo := repositories.NewUserRepository(db)
 	orderRepo := repositories.NewOrderRepository(db)
+	stockRepo := repositories.NewStockRepository(db)
 
 	userService := services.NewUserService(userRepo)
 	loginService := services.NewLoginService(userRepo, jwtSecret)
 	orderService := services.NewOrderService(orderRepo, userRepo)
+	stockService := services.NewStockService(stockRepo)
 
 	userHandler := handlers.NewUserHandler(userService)
 	orderHandler := handlers.NewOrderHandler(orderService)
+	stockHandler := handlers.NewStockHandler(stockService)
 	loginHandler := handlers.NewLoginHandler(loginService)
 
 	r.POST("/register", userHandler.Register)
@@ -92,9 +91,16 @@ func main() {
 
 	r.POST("/login", loginHandler.Login)
 
+	// Public stock routes (all users can view stocks)
+	apiPublic := r.Group("/api")
+	{
+		apiPublic.GET("/stocks", stockHandler.ListStocks)
+		apiPublic.GET("/stocks/:id", stockHandler.GetStock)
+	}
+
+	// Protected routes
 	api := r.Group("/api", middleware.AuthMiddleware(jwtSecret))
 	{
-
 		api.POST("/users", middleware.AdminMiddleware(), userHandler.CreateUser)
 		api.GET("/users", middleware.AdminMiddleware(), userHandler.ListUsers)
 		api.GET("/users/:id", middleware.AdminMiddleware(), userHandler.GetUser)
@@ -106,6 +112,11 @@ func main() {
 		api.GET("/orders/:id", orderHandler.GetOrder)
 		api.PUT("/orders/:id", middleware.AdminMiddleware(), orderHandler.UpdateOrder)
 		api.DELETE("/orders/:id", middleware.AdminMiddleware(), orderHandler.DeleteOrder)
+
+		// Admin-only stock routes
+		api.POST("/stocks", middleware.AdminMiddleware(), stockHandler.CreateStock)
+		api.PUT("/stocks/:id", middleware.AdminMiddleware(), stockHandler.UpdateStock)
+		api.DELETE("/stocks/:id", middleware.AdminMiddleware(), stockHandler.DeleteStock)
 	}
 
 	fmt.Printf("Server starting on :%s...\n", port)
