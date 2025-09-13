@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/mann-som/zerodha/internal/models"
 	"github.com/mann-som/zerodha/internal/repositories"
@@ -20,7 +21,7 @@ func (s *OrderService) CreateOrder(order models.Order, userID string) (models.Or
 	if userID == "" {
 		return models.Order{}, errors.New("user_id is required")
 	}
-	_, err := s.userRepo.Get(userID)
+	user, err := s.userRepo.Get(userID)
 	if err != nil {
 		return models.Order{}, errors.New("user not found")
 	}
@@ -42,6 +43,13 @@ func (s *OrderService) CreateOrder(order models.Order, userID string) (models.Or
 	}
 	if order.Status == "" {
 		order.Status = "pending"
+	}
+
+	if order.Side == "buy" {
+		totalCost := float64(order.Quantity) * order.Price
+		if totalCost > user.Balance {
+			return models.Order{}, errors.New("insufficient balance: required " + fmt.Sprintf("%.2f", totalCost) + ", available " + fmt.Sprintf("%.2f", user.Balance))
+		}
 	}
 	return s.repo.Create(order)
 }

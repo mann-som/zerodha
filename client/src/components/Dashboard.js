@@ -4,16 +4,20 @@ import UserTable from './UserTable';
 import OrderTable from './OrderTable';
 import OrderForm from './OrderForm';
 import UserForm from './UserForm';
+import StockTable from './StockTable';
+import StockForm from './StockForm';
 
 function Dashboard({ token, user, setToken, setUser }) {
   const [users, setUsers] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [stocks, setStocks] = useState([]);
+  const [selectedStock, setSelectedStock] = useState(null);
   const [error, setError] = useState('');
 
   const fetchUsers = useCallback(async () => {
     try {
       const response = await axios.get('http://localhost:8080/api/users', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       console.log('fetchUsers response:', response.status, response.data);
       setUsers(response.data || []);
@@ -33,7 +37,7 @@ function Dashboard({ token, user, setToken, setUser }) {
   const fetchOrders = useCallback(async () => {
     try {
       const response = await axios.get('http://localhost:8080/api/orders', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       console.log('fetchOrders response:', response.status, response.data);
       setOrders(response.data || []);
@@ -50,12 +54,25 @@ function Dashboard({ token, user, setToken, setUser }) {
     }
   }, [token, setToken, setUser]);
 
+  const fetchStocks = useCallback(async () => {
+    try {
+      const response = await axios.get('http://localhost:8080/api/stocks');
+      console.log('fetchStocks response:', response.status, response.data);
+      setStocks(response.data || []);
+      setError('');
+    } catch (error) {
+      console.error('Error fetching stocks:', error.response?.status, error.response?.data || error.message);
+      setError(error.response?.data?.error || 'Failed to fetch stocks: ' + error.message);
+    }
+  }, [token]);
+
   useEffect(() => {
     if (token) {
       fetchUsers();
       fetchOrders();
+      fetchStocks();
     }
-  }, [token, fetchUsers, fetchOrders]);
+  }, [token, fetchUsers, fetchOrders, fetchStocks]);
 
   const handleLogout = () => {
     setToken('');
@@ -77,7 +94,11 @@ function Dashboard({ token, user, setToken, setUser }) {
       </header>
       {error && <p className="text-red-500 mb-4">{error}</p>}
       {user.role === 'admin' && <UserForm token={token} fetchUsers={fetchUsers} />}
-      <OrderForm token={token} userId={user.user_id} fetchOrders={fetchOrders} />
+      {user.role === 'admin' && <StockForm token={token} fetchStocks={fetchStocks} />}
+      <StockTable stocks={stocks} isAdmin={user.role === 'admin'} token={token} fetchStocks={fetchStocks} setSelectedStock={setSelectedStock} />
+      {selectedStock && (
+        <OrderForm token={token} userId={user.user_id} selectedStock={selectedStock} fetchOrders={fetchOrders} setSelectedStock={setSelectedStock} />
+      )}
       <OrderTable orders={orders} isAdmin={user.role === 'admin'} fetchOrders={fetchOrders} token={token} />
       {user.role === 'admin' && <UserTable users={users} fetchUsers={fetchUsers} token={token} />}
     </div>
