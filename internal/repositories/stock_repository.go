@@ -60,3 +60,13 @@ func (r *StockRepository) Delete(id string) error {
 
 	return nil
 }
+
+func (r *StockRepository) GetBySymbolWithTx(tx *gorm.DB, symbol string) (models.Stock, error) {
+	var stock models.Stock
+	result := tx.First(&stock, "symbol = ?", symbol)
+	if result.Error != nil {
+		return models.Stock{}, result.Error
+	}
+
+	return stock, nil
+}

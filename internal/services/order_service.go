@@ -1,20 +1,25 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
+	"encoding/json"
+
+	"github.com/go-redis/redis/v8"
 	"github.com/mann-som/zerodha/internal/models"
 	"github.com/mann-som/zerodha/internal/repositories"
 )
 
 type OrderService struct {
-	repo     *repositories.OrderRepository
-	userRepo *repositories.UserRepository
+	repo        *repositories.OrderRepository
+	userRepo    *repositories.UserRepository
+	redisClient *redis.Client
 }
 
-func NewOrderService(repo *repositories.OrderRepository, userRepo *repositories.UserRepository) *OrderService {
-	return &OrderService{repo: repo, userRepo: userRepo}
+func NewOrderService(repo *repositories.OrderRepository, userRepo *repositories.UserRepository, redisClient *redis.Client) *OrderService {
+	return &OrderService{repo: repo, userRepo: userRepo, redisClient: redisClient}
 }
 
 func (s *OrderService) CreateOrder(order models.Order, userID string) (models.Order, error) {
@@ -51,7 +56,22 @@ func (s *OrderService) CreateOrder(order models.Order, userID string) (models.Or
 			return models.Order{}, errors.New("insufficient balance: required " + fmt.Sprintf("%.2f", totalCost) + ", available " + fmt.Sprintf("%.2f", user.Balance))
 		}
 	}
-	return s.repo.Create(order)
+	createdOrder, err := s.repo.Create(order)
+	if err != nil {
+		return models.Order{}, err
+	}
+
+	orderJSON, err := json.Marshal(createdOrder)
+	if err != nil {
+		return models.Order{}, err
+	}
+
+	err = s.redisClient.RPush(context.Background(), "order_queue", orderJSON).Err()
+	if err != nil {
+		return models.Order{}, err
+	}
+
+	return createdOrder, nil
 }
 
 func (s *OrderService) GetOrder(id string) (models.Order, error) {

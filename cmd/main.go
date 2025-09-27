@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"github.com/joho/godotenv"
 	"github.com/mann-som/zerodha/internal/handlers"
 	"github.com/mann-som/zerodha/internal/middleware"
@@ -50,6 +51,15 @@ func main() {
 		log.Fatal("JWT_SECRET not set in .env or environment variables")
 	}
 
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379" //default redis addr
+	}
+
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: redisAddr,
+	})
+
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -76,7 +86,7 @@ func main() {
 
 	userService := services.NewUserService(userRepo)
 	loginService := services.NewLoginService(userRepo, jwtSecret)
-	orderService := services.NewOrderService(orderRepo, userRepo)
+	orderService := services.NewOrderService(orderRepo, userRepo, redisClient)
 	stockService := services.NewStockService(stockRepo)
 
 	userHandler := handlers.NewUserHandler(userService)

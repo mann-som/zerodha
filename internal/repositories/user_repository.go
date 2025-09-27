@@ -80,3 +80,14 @@ func (r *UserRepository) GetByEmail(email string) (models.User, error) {
 	}
 	return user, nil
 }
+
+func (r UserRepository) GetWithTx(tx *gorm.DB, userID string) (models.User, error) {
+	var user models.User
+	result := tx.First(&user, "id = ?", userID)
+	if result.Error != nil {
+		return models.User{}, result.Error
+	}
+
+	return user, nil
+
+}
