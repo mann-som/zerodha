@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"encoding/json"
 
@@ -51,8 +52,10 @@ func (s *OrderService) CreateOrder(order models.Order, userID string) (models.Or
 	}
 
 	if order.Side == "buy" {
+		log.Printf("BUY CONDITION REACHED")
 		totalCost := float64(order.Quantity) * order.Price
 		if totalCost > user.Balance {
+			log.Printf("TOTALCOST HIGHER THAN BALANCE")
 			return models.Order{}, errors.New("insufficient balance: required " + fmt.Sprintf("%.2f", totalCost) + ", available " + fmt.Sprintf("%.2f", user.Balance))
 		}
 	}
@@ -63,13 +66,16 @@ func (s *OrderService) CreateOrder(order models.Order, userID string) (models.Or
 
 	orderJSON, err := json.Marshal(createdOrder)
 	if err != nil {
+		log.Printf("Error marshaling order: %v", err)
 		return models.Order{}, err
 	}
 
 	err = s.redisClient.RPush(context.Background(), "order_queue", orderJSON).Err()
 	if err != nil {
+		log.Printf("Error pushing order to redis: %v", err)
 		return models.Order{}, err
 	}
+	log.Printf("SUCCESSFULLY CREATED ORDER AND PUSHED TO REDIS ID: %v, SYMBOL: %v, SIDE: %v", createdOrder.ID, createdOrder.Symbol, createdOrder.Side)
 
 	return createdOrder, nil
 }
